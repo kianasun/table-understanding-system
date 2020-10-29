@@ -1,0 +1,47 @@
+# Classes
+
+jl_path: /nas/home/kexuansu/table_understanding_psl/datagov/datagov_merged.jl.new.new
+data_path: /nas/home/kexuansu/table-understanding-system/data/
+model_path: /nas/home/kexuansu/table-understanding-system/results/
+dataset: dg
+seed: 0
+num_of_folds: 5
+fold_file: folds.txt
+
+c2v:
+    cell_classifier_model_file: cell_classify_model
+    block_extractor_model_file: block_extract_model
+    cc_output: c2v_cc_predictions.json
+    be_output: c2v_be_predictions.json
+
+psl:
+    cc_output: psl_cc_predictions.json
+    be_output: psl_be_predictions.json
+    lp_output: psl_lp_predictions.json
+    num_process: 50
+    num_tree: 50
+
+cell_classifier:
+    rule_file: /nas/home/kexuansu/table-understanding-system/cell_classifier/psl/psl-cell-classifier.psl
+    learned_rule_file: /nas/home/kexuansu/table-understanding-system/cell_classifier/psl/psl-cell-classifier.psl
+    predicate_file: /nas/home/kexuansu/table-understanding-system/cell_classifier/psl/psl-cell-classifier-predicates.txt
+    learn_path: /nas/home/kexuansu/table-understanding-system/data/psl/cell_classifier/learn/
+    eval_path: /nas/home/kexuansu/table-understanding-system/data/psl/cell_classifier/eval/
+    cell_classifier_name: psl-cell-classifier-dg
+
+block_extractor:
+    rule_file: /nas/home/kexuansu/table-understanding-system/block_extractor/psl/psl-block-extractor-v2.psl
+    learned_rule_file: /nas/home/kexuansu/table-understanding-system/block_extractor/psl/psl-block-extractor-v2-learned.psl
+    predicate_file: /nas/home/kexuansu/table-understanding-system/block_extractor/psl/psl-block-extractor-v2-predicates.txt
+    learn_path: /nas/home/kexuansu/table-understanding-system/data/psl/block_extractor/learn/
+    eval_path: /nas/home/kexuansu/table-understanding-system/data/psl/block_extractor/eval/
+    block_extractor_name: psl-block-extractor-dg
+
+layout_detector:
+    class: /nas/home/kexuansu/table-understanding-system/layout_detector.layout_detector_psl.LayoutDetectorPSL
+    rule_file: /nas/home/kexuansu/table-understanding-system/layout_detector/psl/psl-layout-detector.psl
+    learned_rule_file: /nas/home/kexuansu/table-understanding-system/layout_detector/psl/psl-layout-detector-learned.psl
+    predicate_file: /nas/home/kexuansu/table-understanding-system/layout_detector/psl/psl-layout-detector-predicates.txt
+    learn_path: /nas/home/kexuansu/table-understanding-system/data/psl/layout_detector/learn/
+    eval_path: /nas/home/kexuansu/table-understanding-system/data/psl/layout_detector/eval/
+    layout_detector_name: psl-layout-detector-dg
