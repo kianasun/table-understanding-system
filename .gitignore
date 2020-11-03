@@ -9,3 +9,4 @@ __pycache__/
 *.ipynb
 results/
 data/
+dg_dataset/*.py
