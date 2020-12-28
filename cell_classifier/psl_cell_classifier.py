@@ -1,5 +1,6 @@
 from cell_classifier.cell_classifier import CellClassifier
 from cell_classifier.c2v_cell_classifier_v2 import C2VCellClassifierV2
+from cell_classifier.mlp_cell_classifier_v2 import MLPCellClassifierV2
 import numpy as np
 from type.cell.cell_type_pmf import CellTypePMF
 from type.cell.semantic_cell_type import SemanticCellType
@@ -9,110 +10,113 @@ from cell_classifier.psl.features import Cell2Feat
 from utils.psl_utils import *
 
 class PSLCellClassifier(CellClassifier):
-    def __init__(self, model_file, config):
+	def __init__(self, model_file, config):
 
-        self.c2v_model = C2VCellClassifierV2(model_file)
+		if ("use_mlp" in config["cell_classifier"]) and config["cell_classifier"]["use_mlp"]:
+			self.c2v_model = MLPCellClassifierV2(model_file)
+		else:
+			self.c2v_model = C2VCellClassifierV2(model_file)
 
-        psl_name_file = config['cell_classifier']['cell_classifier_name']
+		psl_name_file = config['cell_classifier']['cell_classifier_name']
 
-        self.psl_pred_file = config['cell_classifier']['predicate_file']
+		self.psl_pred_file = config['cell_classifier']['predicate_file']
 
-        self.psl_rule_file = config['cell_classifier']['learned_rule_file']
+		self.psl_rule_file = config['cell_classifier']['learned_rule_file']
 
-        self.psl_eval_data_path = config['cell_classifier']['eval_path']
-        print(self.psl_rule_file)
+		self.psl_eval_data_path = config['cell_classifier']['eval_path']
+		print(self.psl_rule_file)
 
-        if not os.path.exists(self.psl_eval_data_path):
-            os.makedirs(self.psl_eval_data_path, exist_ok=True)
+		if not os.path.exists(self.psl_eval_data_path):
+			os.makedirs(self.psl_eval_data_path, exist_ok=True)
 
-        self.model = Model(psl_name_file)
+		self.model = Model(psl_name_file)
 
-        self.feat = Cell2Feat()
+		self.feat = Cell2Feat()
 
-    def __read_cell_df(self, df):
-        type_dic = {}
+	def __read_cell_df(self, df):
+		type_dic = {}
 
-        for (_, i, rid, cid, an, val) in df.itertuples(name=None):
+		for (_, i, rid, cid, an, val) in df.itertuples(name=None):
 
-            if (i, rid, cid) not in type_dic:
+			if (i, rid, cid) not in type_dic:
 
-                type_dic[(i, rid, cid)] = {}
+				type_dic[(i, rid, cid)] = {}
 
-            type_dic[(i, rid, cid)][an] = val
+			type_dic[(i, rid, cid)][an] = val
 
-        return type_dic
+		return type_dic
 
-    def __predict_wrapper(self, prediction, sheets):
+	def __predict_wrapper(self, prediction, sheets):
 
-        type_dic = self.__read_cell_df(prediction)
+		type_dic = self.__read_cell_df(prediction)
 
-        if isinstance(sheets, Sheet):
+		if isinstance(sheets, Sheet):
 
-            sheets = [sheets]
+			sheets = [sheets]
 
-        preds = []
+		preds = []
 
-        for idx, sheet in enumerate(sheets):
+		for idx, sheet in enumerate(sheets):
 
-            r, c = sheet.values.shape
+			r, c = sheet.values.shape
 
-            pred = np.empty((r, c), dtype=CellTypePMF)
+			pred = np.empty((r, c), dtype=CellTypePMF)
 
-            for i in range(r):
+			for i in range(r):
 
-                for j in range(c):
+				for j in range(c):
 
-                    type_class = {SemanticCellType.inverse_dict[k]: v
-                                  for k, v in type_dic[(idx, i, j)].items()}
+					type_class = {SemanticCellType.inverse_dict[k]: v
+								  for k, v in type_dic[(idx, i, j)].items()}
 
-                    pred[i][j] = CellTypePMF(type_class)
+					pred[i][j] = CellTypePMF(type_class)
 
-            preds.append(pred)
+			preds.append(pred)
 
-        return preds
+		return preds
 
-    def write_feat_obj(self, sheets, tags):
+	def write_feat_obj(self, sheets, tags):
 
-        self.feat.write_feats(sheets, None, tags, self.psl_pred_file, self.psl_eval_data_path)
+		self.feat.write_feats(sheets, None, tags, self.psl_pred_file, self.psl_eval_data_path)
 
-        get_predicates(self.model, self.psl_pred_file)
+		get_predicates(self.model, self.psl_pred_file)
 
-        add_data(self.model, self.psl_eval_data_path)
+		add_data(self.model, self.psl_eval_data_path)
 
-        get_rules(self.model, self.psl_rule_file)
+		get_rules(self.model, self.psl_rule_file)
 
-        results = self.model.infer()
+		results = self.model.infer()
 
-        return results
+		return results
 
-    def classify_cells(self, sheet: Sheet) -> 'np.ndarray[CellTypePMF]':
+	def classify_cells(self, sheet: Sheet) -> 'np.ndarray[CellTypePMF]':
 
-        c2v_tags = self.c2v_model.classify_cells_all_tables([sheet])
+		c2v_tags = self.c2v_model.classify_cells_all_tables([sheet])
 
-        c2v_tags = [[[_.get_best_type().str() for _ in row] for row in tags]
-                    for tags in c2v_tags]
+		c2v_tags = [[[_.get_best_type().str() for _ in row] for row in tags]
+					for tags in c2v_tags]
 
-        results = self.write_feat_obj([sheet], c2v_tags)
+		results = self.write_feat_obj([sheet], c2v_tags)
 
-        tags = self.__predict_wrapper(results[self.model.get_predicate(self.feat.pred_name)],
-                                      [sheet])
+		tags = self.__predict_wrapper(results[self.model.get_predicate(self.feat.pred_name)],
+									  [sheet])
 
-        assert len(tags) == 1
+		assert len(tags) == 1
 
-        return tags[0]
+		return tags[0]
 
-    def classify_cells_all_tables(self, sheets):
+	def classify_cells_all_tables(self, sheets):
 
-        c2v_tags = self.c2v_model.classify_cells_all_tables(sheets)
+		c2v_tags = self.c2v_model.classify_cells_all_tables(sheets)
 
-        c2v_tags = [[[_.get_best_type().str() for _ in row] for row in tags]
-                    for tags in c2v_tags]
+		c2v_tags = [[[_.get_best_type().str() for _ in row] for row in tags]
+					for tags in c2v_tags]
 
-        results = self.write_feat_obj(sheets, c2v_tags)
+		results = self.write_feat_obj(sheets, c2v_tags)
 
-        tags = self.__predict_wrapper(results[self.model.get_predicate(self.feat.pred_name)],
-                                      sheets)
-        return tags
+		tags = self.__predict_wrapper(results[self.model.get_predicate(self.feat.pred_name)],
+									  sheets)
+		return tags
 
-    def reset(self):
-        self.__init__()
+	def reset(self):
+		self.__init__()

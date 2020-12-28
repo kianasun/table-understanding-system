@@ -102,12 +102,12 @@ class LoadCell2VecData:
                         for j, cell in enumerate(row):
                             if cell is None:
                                 typ = "empty"
-                            elif cell == "derived":
-                                typ = "data"
-                            elif cell == "notes":
-                                typ = "metadata"
                             else:
                                 typ = cell
+                            #elif cell == "derived":
+                            #    typ = "data"
+                            #elif cell == "notes":
+                            #    typ = "metadata"
 
                             datatype_tags[i][j] = CellTypePMF({SemanticCellType.inverse_dict[typ]: 1})
                 blks = []
@@ -152,6 +152,21 @@ class LoadCell2VecData:
                 indices.append(temp[i*each_len : ])
 
         return indices
+
+    def split_indices(self, indices, k=5):
+        new_indices = []
+
+        each_len = int(len(indices) / k)
+
+        for i in range(k):
+
+            if i != k-1:
+
+                new_indices.append(indices[i*each_len : (i+1)*each_len])
+            else:
+                new_indices.append(indices[i*each_len : ])
+
+        return new_indices
 
     def get_table_from_index(self, index):
         return self.tables[index], self.celltypes[index], \

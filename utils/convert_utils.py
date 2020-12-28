@@ -104,8 +104,10 @@ def convert_lst_graphobj(edge_list, block_list):
 
     for idx, edges in enumerate(edge_list):
         g = LayoutGraph(block_list[idx])
+        #print(len(block_list[idx]))
 
         for edge in edges:
+            #print(edge)
             typ = BasicEdgeType.str_to_edge_type[edge[-1]]
             g.add_edge(typ, edge[0], edge[1])
 

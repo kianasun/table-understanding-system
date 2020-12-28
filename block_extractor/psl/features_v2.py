@@ -8,7 +8,7 @@ from type.block.function_block_type import FunctionBlockType
 from type.cell.cell_type_pmf import CellTypePMF
 from type.cell.semantic_cell_type import SemanticCellType
 from type.block.simple_block import SimpleBlock
-from block_extractor.block_extractor_mcmc import BlockExtractorMCMC
+from block_extractor.block_extractor_mcmc_v2 import BlockExtractorMCMC
 from cell_classifier.psl.features import *
 from cell_classifier.c2v_cell_classifier import C2VCellClassifier
 
@@ -63,6 +63,7 @@ class Block2FeatV2:
                 t_blocks = None if blocks is None else blocks[i]
 
                 temp_target, temp_truth = self.serialize_blocks_truth_targets(sheet, t_blocks, tags[i], celltypes[i], i)
+                print("generated {} table {}".format(i, sheet.values.shape))
 
                 if len(target_strs) == 0:
                     target_strs = temp_target

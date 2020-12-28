@@ -25,7 +25,7 @@ class Cell2Feat:
 
         self.pred_name = "celltype"
 
-    def serialize_feats(self, sheets, path, i=0):
+    def serialize_feats(self, sheets, path, idx=0):
         if isinstance(sheets, list):
             str_list = [[] for _ in self.tags]
 
@@ -45,13 +45,13 @@ class Cell2Feat:
 
         for tag in self.tags:
 
-            str_list.append("\n".join(["{}\t{}\t{}\t{}".format(i, x, y, int(tag(values[x][y])))
+            str_list.append("\n".join(["{}\t{}\t{}\t{}".format(idx, x, y, int(tag(values[x][y])))
                                       for x in range(len(values))
                                       for y in range(len(values[x]))
                                       ]))
         return str_list
 
-    def serialize_ce_lab(self, sheets, tags, i=0):
+    def serialize_ce_lab(self, sheets, tags, idx=0):
 
         if isinstance(sheets, list):
             temp = []
@@ -67,7 +67,7 @@ class Cell2Feat:
 
         for j in range(r):
             for k in range(c):
-                temp.append("{}\t{}\t{}\t{}\t{}".format(i, j, k, tags[j][k], 1.0))
+                temp.append("{}\t{}\t{}\t{}\t{}".format(idx, j, k, tags[j][k], 1.0))
 
         return "\n".join(temp)
 

@@ -89,6 +89,7 @@ def main(config, json_file):
     id2str = {v.id(): k for k, v in BasicEdgeType.str_to_edge_type.items()}
     labels = [id2str[_] for _ in range(len(id2str))]
     scores = []
+    time_list = []
     macro_scores = []
 
     for i, fold in enumerate(folds):
@@ -103,13 +104,16 @@ def main(config, json_file):
         temp_all, temp_macro = get_cl_score(pred, gt)
         scores.append(temp_all)
         macro_scores.append(temp_macro)
+        time_list.append(preds[i]["time"] / float(len(test_indices)))
         #break
 
     #print(scores)
 
+    print("stddev", np.std(np.array(macro_scores)))
     scores = np.mean(np.array(scores), axis=0)
     print("\n".join(["{}: {}".format(labels[i], scores[i]) for i in range(len(labels))]))
     print("macro avg: {}".format(sum(macro_scores) / len(macro_scores)))
+    print("time avg: {} seconds".format(sum(time_list) / len(time_list)))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

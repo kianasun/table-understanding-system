@@ -20,6 +20,10 @@ psl:
     num_process: 50
     num_tree: 50
 
+crf:
+    block_extractor_model_file: chain_crf_block_extract_model
+    be_output: crf_be_predictions.json
+
 cell_classifier:
     rule_file: /nas/home/kexuansu/table-understanding-system/cell_classifier/psl/psl-cell-classifier.psl
     learned_rule_file: /nas/home/kexuansu/table-understanding-system/cell_classifier/psl/psl-cell-classifier.psl

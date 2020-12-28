@@ -48,53 +48,18 @@ class BlockExtractorMCMC(BlockExtractor):
 
         return row_h, col_h
 
-    def get_cell_dist_of_split_c2v(self, block, c2vtypes, tags):
-        block_dist = {v.id(): 0 for (k, v) in FunctionCellType.inverse_dict.items()}
-        lx, ly, rx, ry = block.top_row, block.left_col, block.bottom_row, block.right_col
-
-        for i in range(lx, rx + 1):
-            for j in range(ly, ry + 1):
-                if tags[i][j].get_best_type().str() == "empty":
-                    continue
-
-                typ = c2vtypes[i][j].get_best_type().str()
-
-                temp_typ = FunctionCellType.inverse_dict[typ].id()
-
-                block_dist[temp_typ] += 1
-
-        block_area = block.get_area()
-
-        if block_area == 0:
-            return None
-
-        return [block_dist[i] / block_area for i in block_dist]
-
     def get_block_size(self, block):
         block_size = (block.get_right_col() - block.get_left_col() + 1) * \
                      (block.get_bottom_row() - block.get_top_row() + 1)
 
         return block_size
 
-    def is_split(self, block, d, ratio):
-        #total_size = self.get_block_size(block)
-
-        #ratio = total_size / area
+    def is_split(self, d):
 
         p = self.alpha / ((1 + d) ** self.beta)
-        #p = p * ratio
-        #p = self.alpha / (1 + self.beta * d)
-
-
-        #print("orig p", p)
-        #print(block)
-        #p *= ratio
 
         rv = random.random()
-
-        #print("is_split, p, ", p, "rv, ", rv)
         if rv <= p:
-            #print("split")
             return True
         else:
             return False
@@ -133,8 +98,6 @@ class BlockExtractorMCMC(BlockExtractor):
     def get_cell_distribution_of_split(self, block, celltypes, ignore=False):
         block_dist = {v.id(): 0 for (k, v) in SemanticCellType.inverse_dict.items()
                         if k in set(["string", "cardinal", "datetime", "empty"])}
-        #block_dist = {v.id(): 0 for (k, v) in SemanticCellType.inverse_dict.items()
-        #              }
 
         lx, ly, rx, ry = block.top_row, block.left_col, block.bottom_row, block.right_col
 
@@ -150,12 +113,8 @@ class BlockExtractorMCMC(BlockExtractor):
                     temp_typ = "empty"
                 else:
                     temp_typ = "string"
-                #temp_typ = typ
 
                 temp_typ = SemanticCellType.inverse_dict[temp_typ].id()
-
-                #if typ not in block_dist:
-                #    block_dist[typ] = 0
 
                 block_dist[temp_typ] += 1
 
@@ -179,7 +138,7 @@ class BlockExtractorMCMC(BlockExtractor):
             ret -= r * np.log(r)
         return ret
 
-    def get_best_split(self, block, row_h, col_h, celltypes, row_dist, row_c2v_dist, pre_com):
+    def get_best_split(self, block, row_h, celltypes, row_dist, pre_com):
         r, c = celltypes.shape
 
         best_split = None, None
@@ -190,10 +149,8 @@ class BlockExtractorMCMC(BlockExtractor):
 
         block_list = []
 
-        for b1, b2 in self.get_splits_rows(block, row_h):
+        for b1, b2 in self.get_splits_rows(block):
 
-            #b1_lx, b1_rx = b1.top_row, b1.bottom_row
-            #b2_lx, b2_rx = b2.top_row, b2.bottom_row
             (b1_lx, b1_rx) = b1
             (b2_lx, b2_rx) = b2
 
@@ -209,17 +166,9 @@ class BlockExtractorMCMC(BlockExtractor):
             else:
                 b2_np = pre_com[(b2_lx, b2_rx)]
 
-            #b1_c2v_np = np.mean(row_c2v_dist[b1_lx:b1_rx+1, :], axis=0)
-
-            #b2_c2v_np = np.mean(row_c2v_dist[b2_lx:b2_rx+1, :], axis=0)
-
             dist = np.linalg.norm(b1_np - b2_np)**2
-            #dist_c2v = np.linalg.norm(b1_c2v_np - b2_c2v_np)**2
-            #dist = (dist + dist_c2v) / 2
-            #dist_c2v_list.append(dist_c2v)
             dist = 0 if dist == 0 else self.lmd * np.exp(-self.lmd / dist)
             dist_list.append(dist)
-            #dist_list.append(dist)
             block_list.append((b1, b2))
 
         sum_dist = sum(dist_list)
@@ -227,22 +176,10 @@ class BlockExtractorMCMC(BlockExtractor):
         if len(block_list) == 0 or sum_dist == 0:
             return (None, None), 0
 
-        #print("prev", dist_list)
-        #dist_list = normalize([[_] for _ in dist_list], axis=0)
-        #dist_list = [_[0] for _ in dist_list]
-
-        #print("after", dist_list)
-        #dist_list = [(_/sum_dist) * _ for _ in dist_list]
-
         temp_list = [_ for _ in range(len(block_list))]
 
         rc = random.choices(population=temp_list,
                             weights=dist_list)[0]
-        #print("selected", dist_list[rc], (str(block_list[rc][0]), str(block_list[rc][1])))
-        #print("dist_list", dist_list)
-        #print("dist_c2v", dist_c2v_list)
-        #print("entroy_list", entropy_list)
-        #print("block_list", [(str(_[0]), str(_[1])) for _ in block_list])
 
         b1 = SimpleBlock(None, block.get_left_col(), block.get_right_col(), block_list[rc][0][0], block_list[rc][0][1])
         b2 = SimpleBlock(None, block.get_left_col(), block.get_right_col(), block_list[rc][1][0], block_list[rc][1][1])
@@ -264,17 +201,20 @@ class BlockExtractorMCMC(BlockExtractor):
 
                 yield b1, b2
 
-    def get_splits_rows(self, block: SimpleBlock, row_h):
+    def get_splits_cols(self, block):
+        for col in range(block.get_left_col(), block.get_right_col()):
+            b1 = (block.get_left_col(), col)
+            b2 = (col + 1, block.get_right_col())
 
-        for row in row_h:
-            if block.get_top_row() <= row < block.get_bottom_row():
-                b1 = (block.get_top_row(), row)
-                b2 = (row + 1, block.get_bottom_row())
+            yield b1, b2
 
-                #b1 = SimpleBlock(None, block.get_left_col(), block.get_right_col(), block.get_top_row(), row)
-                #b2 = SimpleBlock(None, block.get_left_col(), block.get_right_col(), row + 1, block.get_bottom_row())
+    def get_splits_rows(self, block: SimpleBlock):
 
-                yield b1, b2
+        for row in range(block.get_top_row(), block.get_bottom_row()):
+            b1 = (block.get_top_row(), row)
+            b2 = (row + 1, block.get_bottom_row())
+
+            yield b1, b2
 
     def get_dist_for_all_rows(self, block, celltypes):
         lx, rx = block.get_top_row(), block.get_bottom_row()
@@ -290,29 +230,13 @@ class BlockExtractorMCMC(BlockExtractor):
 
         return np.array(ret)
 
-    def get_dist_for_all_rows_c2v(self, block, c2vtypes, tags):
-        lx, rx = block.get_top_row(), block.get_bottom_row()
-        ret = []
-
-        for i in range(lx, rx + 1):
-
-            temp_block = SimpleBlock(None, block.get_left_col(), block.get_right_col(), i, i)
-
-            arr = self.get_cell_dist_of_split_c2v(temp_block, c2vtypes, tags)
-
-            ret.append(arr)
-
-        return np.array(ret)
-
     def generate_a_tree(self, sheet, row_h, col_h, start_block, tags, row_dist, row_c2v_dist):
         row_blocks = []
 
         max_row, max_col = sheet.values.shape
 
-        #print("within")
         q = Queue()
         q.put((start_block, 0))
-        #row_q = Queue()
 
         weights = []
 
@@ -322,28 +246,17 @@ class BlockExtractorMCMC(BlockExtractor):
         start = time.time()
         while not q.empty():
             (next_block, d) = q.get()
-            #print(str(next_block), d)
-            #print(b1, b2, split_w)
 
-
-            #print(str(next_block))
-            if self.is_split(next_block, d, (next_block.bottom_row - next_block.top_row + 1) / max_row):
-                (b1, b2), split_w = self.get_best_split(next_block, row_h, set(), tags, row_dist, row_c2v_dist, pre_com)
+            if self.is_split(d):
+                (b1, b2), split_w = self.get_best_split(next_block, row_h, tags, row_dist, pre_com)
                 if (b1 and b2):
-                    #print("split", str(b1), str(b2))
                     q.put((b1, d+1))
                     q.put((b2, d+1))
-                    #weights.append(split_w)
                 else:
                     row_blocks.append((next_block, d))
-                    #row_q.put((next_block, d))
-                    #row_blocks.add((next_block, d))
-                #print(b1, b2)
             else:
 
                 row_blocks.append((next_block, d))
-                #row_q.put((next_block, d))
-                #row_blocks.add((next_block, d))
 
         mid = time.time()
         blocks = set()
@@ -351,29 +264,22 @@ class BlockExtractorMCMC(BlockExtractor):
         q = Queue()
         for blk in row_blocks:
             q.put((blk[0], blk[1]))
-        #self.beta = 0.
-
-        #print("col")
 
         while not q.empty():
             (next_block, d) = q.get()
 
             (b1, b2), split_w = self.get_best_split_col(next_block, col_h, tags)
 
-            if self.is_split(next_block, d, max_row * max_col):
+            if self.is_split(d):
                 if (b1 and b2):
                     q.put((b1, d+1))
                     q.put((b2, d+1))
                 else:
-                    #blocks.append(next_block)
                     blocks.add(next_block)
             else:
-                #blocks.append(next_block)
                 blocks.add(next_block)
 
         end = time.time()
-        #print("a tree: {}, {}, {}".format(mid - start, end - mid, end - start))
-        #print(len(blocks), len(weights))
         weight = 0
         all_areas = sum([blk.get_area() for (blk, _) in row_blocks])
         for (blk, _) in row_blocks:
@@ -384,7 +290,6 @@ class BlockExtractorMCMC(BlockExtractor):
             weight += (blk.get_area() / all_areas) * entropy
 
         weight =  self.lmd * np.exp(-self.lmd * weight)
-        #weight = 100 if weight == 0 else np.exp(1 / weight)
         return list(blocks), weight
 
     def convert_c2v_cell(self, c2v_types):
@@ -401,51 +306,13 @@ class BlockExtractorMCMC(BlockExtractor):
 
         return pred
 
-    def convert_basic(self, types):
-        (r, c) = types.shape
-        pred = np.empty((r, c), dtype=CellTypePMF)
-
-        for i in range(r):
-            for j in range(c):
-
-                typ = types[i][j].get_best_type().str()
-
-                if typ in ["nominal", "ordinal"]:
-                    typ = "cardinal"
-                elif typ in ["person", "organization", "location", "event"]:
-                    typ = "string"
-
-                cell_class_dict = {
-                    SemanticCellType.inverse_dict[typ]: 1.0
-                }
-                pred[i][j] = CellTypePMF(cell_class_dict)
-
-        return pred
-
     def extract_blocks(self, sheet: Sheet, tags, c2v_types) -> List[SimpleBlock]:
 
-        random.seed(2020)
+        random.seed(0)
 
         bev = BlockExtractorV2()
 
-        c2v_tags = self.convert_c2v_cell(c2v_types)
-
-        temp_tags = self.convert_basic(tags)
-
-        row_blocks = bev.merge_sheet_left_to_right(sheet, temp_tags)
-
-        maximal_blocks = bev.merge_sheet_top_to_bottom(row_blocks)
-
-        cand_blocks = [_ for t, _ in maximal_blocks]
-
-        #cand_blocks = bev.extract_blocks(sheet, c2v_tags)
-
-        #row_h, col_h = self.get_hypotheses(cand_blocks)
-
         max_row, max_col = sheet.values.shape
-
-        #print("r, c", max_row, max_col)
-        #print("row_h", row_h)
 
         row_h = set([_ for _ in range(0, max_row)])
 
@@ -455,10 +322,8 @@ class BlockExtractorMCMC(BlockExtractor):
 
         row_dist = self.get_dist_for_all_rows(start_block, tags)
 
-        #row_c2v_dist = self.get_dist_for_all_rows_c2v(start_block, c2v_tags, tags)
         row_c2v_dist = []
 
-        #freeze_support()
         blocks_list, weight_list = [], []
 
         NUMBER_OF_PROCESSES = self.num_process
@@ -480,26 +345,13 @@ class BlockExtractorMCMC(BlockExtractor):
         # Get and print results
         for i in range(len(TASKS)):
             blks, ws = done_queue.get()
-            """
-            print(i, ws)
-            for blk in blks:
-                print(blk)
-            print()
-            """
             blocks_list.append(blks)
             weight_list.append(ws)
 
-        #print("block len", len(blocks_list))
         for i in range(NUMBER_OF_PROCESSES):
             task_queue.put('STOP')
 
         blocks = random.choices(population=blocks_list,
                                 weights=weight_list)[0]
-        """
-        print("selected")
-        for blk in blocks:
-            print(blk)
-        """
-        #print("len blocks", len(blocks))
 
         return blocks

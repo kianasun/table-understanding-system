@@ -8,6 +8,7 @@ from data_loader.load_majid_data import LoadCell2VecData
 from cell_classifier.psl_cell_classifier import PSLCellClassifier
 from block_extractor.block_extractor_psl_v2 import BlockExtractorPSLV2
 from block_extractor.block_extractor_c2v import BlockExtractorC2V
+from block_extractor.block_extractor_chain_crf import ChainCRFBlockExtractor
 from block_extractor.block_extractor_c2v_pretrain import BlockExtractorC2VPretrain
 from type.cell.cell_type_pmf import CellTypePMF
 from type.cell.semantic_cell_type import SemanticCellType
@@ -15,6 +16,7 @@ from utils.convert_utils import convert_str_np_cc, convert_blkobj_celltype_id,\
                                 convert_blk_celltype_id
 from evaluate_be import get_cl_score
 import itertools
+import time
 
 def validate_psl(cc_model_file, be_model_file, config, eval_sheets, eval_blocks):
 
@@ -47,22 +49,29 @@ def validate_psl(cc_model_file, be_model_file, config, eval_sheets, eval_blocks)
 
 
 def predict_one_fold(cc_model_file, be_model_file, config, method,
-                     test_tup, eval_tup):
+                     test_tup, dev_tup):
     test_sheets, test_celltypes, test_blocktypes = test_tup
-    eval_sheets, eval_blocktypes = eval_tup
+    dev_sheets, dev_blocktypes = dev_tup
 
     if method == "psl":
         par_dict = validate_psl(cc_model_file, be_model_file, config,
-                                eval_sheets, eval_blocktypes)
+                                dev_sheets, dev_blocktypes)
         print("best par_dict", par_dict)
         classifier = BlockExtractorPSLV2(be_model_file, config, beta=par_dict["beta"],
                                          lmd=par_dict["lmd"])
     elif ("use_rnn" in config["block_extractor"]) and config["block_extractor"]["use_rnn"]:
         classifier = BlockExtractorC2VPretrain(be_model_file, config)
-    else:
+    elif method == "c2v":
         classifier = BlockExtractorC2V(be_model_file)
+    else:
+        classifier = ChainCRFBlockExtractor(be_model_file)
+
+
+    start_time = time.time()
 
     pred_block_list = classifier.extract_blocks_all_tables(test_sheets, test_celltypes)
+
+    end_time = time.time()
 
     ret = [[(blk.top_row, blk.left_col, blk.bottom_row, blk.right_col,
                 blk.block_type.get_best_type().str())
@@ -75,7 +84,7 @@ def predict_one_fold(cc_model_file, be_model_file, config, method,
     print("score:", get_cl_score(convert_blk_celltype_id(gt, test_sheets),
                                  convert_blk_celltype_id(ret, test_sheets)))
 
-    return {"predict": ret, "gt": gt}
+    return {"predict": ret, "gt": gt, "time": end_time - start_time}
 
 
 def main(config, method):
@@ -97,18 +106,22 @@ def main(config, method):
     for i, fold in enumerate(folds):
         test_indices = fold["eval"]
         dev_indices = fold["dev"]
+        print("train, test, dev", len(fold["train"]), len(test_indices), len(dev_indices))
 
         cc_pred = convert_str_np_cc(cc_tags[i]["predict"])
 
-        test_sheets, _, test_blocktypes, __ = data_loader.get_tables_from_indices(test_indices)
+        test_sheets, test_cctypes, test_blocktypes, __ = data_loader.get_tables_from_indices(test_indices)
 
         dev_sheets, _, dev_blocktypes, __ = data_loader.get_tables_from_indices(dev_indices)
 
         if ("use_rnn" in config["block_extractor"]) and config["block_extractor"]["use_rnn"]:
             be_model_path = config["c2v"]["cl_model"] + str(i) + ".model"
-        else:
+        elif method == "psl":
             be_model_path = os.path.join(result_path,
                             config["c2v"]["block_extractor_model_file"]+ str(i) +".model")
+        else:
+            be_model_path = os.path.join(result_path,
+                            config[method]["block_extractor_model_file"]+ str(i) +".model")
 
         if config["dataset"] == "dg":
             cc_model_path = os.path.join(result_path,
@@ -118,7 +131,8 @@ def main(config, method):
 
 
         pred = predict_one_fold(cc_model_path, be_model_path, config, method,
-                               (test_sheets, cc_pred, test_blocktypes),
+                               (test_sheets, cc_pred, test_blocktypes), # use self-predicted cc
+                               #(test_sheets, test_cctypes, test_blocktypes),
                                (dev_sheets, dev_blocktypes))
 
         pred_list.append(pred)
@@ -132,8 +146,8 @@ if __name__ == "__main__":
     parser.add_argument('--config', type=str)
     parser.add_argument('--method', type=str)
     FLAGS, unparsed = parser.parse_known_args()
-    if FLAGS.method not in ["psl", "c2v"]:
-        print("Only supports PSL or RandomForest")
+    if FLAGS.method not in ["psl", "c2v", "crf"]:
+        print("Only supports PSL, RandomForest or CRF")
         sys.exit(0)
 
     with open(FLAGS.config, 'r') as ymlfile:

@@ -17,7 +17,7 @@
 ISNUMBER(T, X, Y) >> !CELLTYPE(T, X, Y, "string") .
 ISNUMBER(T, X, Y) >> !CELLTYPE(T, X, Y, "location") .
 ISNUMBER(T, X, Y) >> !CELLTYPE(T, X, Y, "organization") .
-ISNUMBER(T, X, Y) >> !CELLTYPE(T, X, Y, "event") .
+//ISNUMBER(T, X, Y) >> !CELLTYPE(T, X, Y, "event") .
 ISNUMBER(T, X, Y) >> !CELLTYPE(T, X, Y, "person") .
 ISNUMBER(T, X, Y) >> !CELLTYPE(T, X, Y, "empty") .
 
@@ -26,7 +26,7 @@ ISNUMBER(T, X, Y) & !ISYEAR(T, X, Y) >> !CELLTYPE(T, X, Y, "datetime") .
 
 HASNUM(T, X, Y) & !HASALPHA(T, X, Y) >> !CELLTYPE(T, X, Y, "organization") .
 HASNUM(T, X, Y) & !HASALPHA(T, X, Y) >> !CELLTYPE(T, X, Y, "person") .
-HASNUM(T, X, Y) & !HASALPHA(T, X, Y) >> !CELLTYPE(T, X, Y, "event") .
+//HASNUM(T, X, Y) & !HASALPHA(T, X, Y) >> !CELLTYPE(T, X, Y, "event") .
 HASNUM(T, X, Y) & !HASALPHA(T, X, Y) >> !CELLTYPE(T, X, Y, "location") .
 
 HASALPHA(T, X, Y) & !HASNUM(T, X, Y) >> !CELLTYPE(T, X, Y, "cardinal") .
@@ -44,7 +44,7 @@ MOREWORDS(T, X, Y) >> !CELLTYPE(T, X, Y, "empty") .
 ONEWORD(T, X, Y) & HASNUM(T, X, Y) & ISUPPER(T, X, Y) >> !CELLTYPE(T, X, Y, "location") .
 ONEWORD(T, X, Y) & HASNUM(T, X, Y) & ISUPPER(T, X, Y) >> !CELLTYPE(T, X, Y, "organization") .
 ONEWORD(T, X, Y) & HASNUM(T, X, Y) & ISUPPER(T, X, Y) >> !CELLTYPE(T, X, Y, "person") .
-ONEWORD(T, X, Y) & HASNUM(T, X, Y) & ISUPPER(T, X, Y) >> !CELLTYPE(T, X, Y, "event") .
+//ONEWORD(T, X, Y) & HASNUM(T, X, Y) & ISUPPER(T, X, Y) >> !CELLTYPE(T, X, Y, "event") .
 //ONEWORD(T, X, Y) & HASNUM(T, X, Y) & ISUPPER(T, X, Y) >> !CELLTYPE(T, X, Y, "cardinal") .
 
 ONEWORD(T, X, Y) & !HASNUM(T, X, Y) >> !CELLTYPE(T, X, Y, "cardinal") .

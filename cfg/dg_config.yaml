@@ -21,6 +21,23 @@ psl:
     num_process: 50
     num_tree: 50
 
+crf:
+    cell_classifier_model_file: grid_crf_cell_classify_model
+    block_extractor_model_file: chain_crf_block_extract_model
+    layout_predictor_model_file: crf_layout_predictor_model
+    lp_output: crf_lp_predictions.json
+    cc_output: crf_cc_predictions.json
+    be_output: crf_be_predictions.json
+
+mlp:
+    cell_classifier_model_file: mlp_cell_classify_model
+    cc_output: mlp_cc_predictions.json
+
+
+rf:
+    layout_predictor_model_file: rf_layout_predictor_model
+    lp_output: rf_lp_predictions.json
+
 cell_classifier:
     rule_file: /nas/home/kexuansu/table-understanding-system/cell_classifier/psl/psl-cell-classifier.psl
     learned_rule_file: /nas/home/kexuansu/table-understanding-system/cell_classifier/psl/psl-cell-classifier.psl

@@ -18,17 +18,22 @@ def main(json_file):
 
     scores = []
     macro_scores = []
+    time_list = []
 
     for i, tags in enumerate(cc_tags):
         gt = convert_str_id_cc(tags["gt"])
         pred = convert_str_id_cc(tags["predict"])
+        #print(len(tags["gt"]))
+        time_list.append(tags["time"] / float(len(tags["gt"])))
 
         scores.append(f1_score(gt, pred, average=None))
         macro_scores.append(f1_score(gt, pred, average="macro"))
 
+    print("stddev", np.std(np.array(macro_scores)))
     scores = np.mean(np.array(scores), axis=0)
     print("\n".join(["{}: {}".format(labels[i], scores[i]) for i in range(len(labels))]))
     print("macro avg: {}".format(sum(macro_scores) / len(macro_scores)))
+    print("time avg: {} seconds".format(sum(time_list) / len(time_list)))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -8,14 +8,25 @@ from type.block.function_block_type import FunctionBlockType
 from data_loader.load_majid_data import LoadCell2VecData
 from utils.convert_utils import convert_blk_blkobj, convert_str_id_cc
 from layout_detector.layout_detector_psl import LayoutDetectorPSL
+from layout_detector.layout_detector_crf import LayoutDetectorCRF
+from layout_detector.layout_detector_rf import LayoutDetectorRF
+import time
 
-def predict_one_fold(config, method, test_tup):
+def predict_one_fold(config, method, test_tup, lp_model_path):
     test_sheets, test_celltypes, test_blocktypes, test_layouts = test_tup
 
     if method == "psl":
         detector = LayoutDetectorPSL(config)
+    elif method == "crf":
+        detector = LayoutDetectorCRF(lp_model_path)
+    else:
+        detector = LayoutDetectorRF(lp_model_path)
+
+    start_time = time.time()
 
     layouts = detector.detect_layout_all_tables(test_sheets, test_celltypes, test_blocktypes)
+
+    end_time = time.time()
 
     ret = [[(from_idx, i, typ.str()) for i in range(len(layout.nodes))
                 for (typ, from_idx) in layout.inEdges[i]]
@@ -25,7 +36,7 @@ def predict_one_fold(config, method, test_tup):
                 for (typ, from_idx) in layout.inEdges[i]]
             for layout in test_layouts]
 
-    return {"predict": ret, "gt": gt}
+    return {"predict": ret, "gt": gt, "time": end_time - start_time}
 
 
 def main(config, method):
@@ -55,8 +66,15 @@ def main(config, method):
 
         test_sheets, test_celltypes, test_blocktypes, test_layouts = data_loader.get_tables_from_indices(test_indices)
 
+        if method == "crf" or method == "rf":
+            lp_model_path = os.path.join(result_path,
+                                config[method]["layout_predictor_model_file"]+ str(i) +".model")
+            #lp_model_path = config[method]["layout_prediction_model_file"]+ str(i) +".pkl"
+        else:
+            lp_model_path = None
+
         pred = predict_one_fold(config, method,
-                               (test_sheets, cc_pred, be_pred, test_layouts))
+                               (test_sheets, cc_pred, be_pred, test_layouts), lp_model_path)
 
         pred_list.append(pred)
 

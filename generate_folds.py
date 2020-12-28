@@ -15,6 +15,12 @@ def main(config):
 
     indices = data_loader.split_tables(k=config['num_of_folds'])
 
+    all_indices = [item for lst in indices for item in lst]
+
+    all_indices = all_indices[10:]
+
+    indices = data_loader.split_indices(all_indices, k=config['num_of_folds'])
+
     # set a seed for splitting train/dev
     random.seed(config['seed'])
 
