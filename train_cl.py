@@ -40,15 +40,15 @@ def main(config, train_cc, train_be, train_lp):
         os.makedirs(result_path, exist_ok=True)
 
         if train_cc:
-            #model_path = os.path.join(result_path,
-            #                config["c2v"]["cell_classifier_model_file"]+ str(i) +".model")
-            #cc_trainer = C2VClassifierTrainer(model_path)
-            #cc_trainer.fit(train_sheets, train_celltypes, dev_sheets, dev_celltypes)
-
             model_path = os.path.join(result_path,
-                            config["crf"]["cell_classifier_model_file"]+ str(i) +".model")
-            cc_trainer = GridCRFTrainer(model_path)
+                            config["c2v"]["cell_classifier_model_file"]+ str(i) +".model")
+            cc_trainer = C2VClassifierTrainer(model_path)
             cc_trainer.fit(train_sheets, train_celltypes, dev_sheets, dev_celltypes)
+
+            #model_path = os.path.join(result_path,
+            #                config["crf"]["cell_classifier_model_file"]+ str(i) +".model")
+            #cc_trainer = GridCRFTrainer(model_path)
+            #cc_trainer.fit(train_sheets, train_celltypes, dev_sheets, dev_celltypes)
 
             #model_path = os.path.join(result_path,
             #                config["mlp"]["cell_classifier_model_file"]+ str(i) +".model")
@@ -56,15 +56,15 @@ def main(config, train_cc, train_be, train_lp):
             #cc_trainer.fit(train_sheets, train_celltypes, dev_sheets, dev_celltypes)
 
         if train_be:
-            #model_path = os.path.join(result_path,
-            #                config["c2v"]["block_extractor_model_file"]+ str(i) + ".model")
-            #be_trainer = C2VExtractorTrainer(model_path)
-            #be_trainer.fit(train_sheets, train_blocktypes, dev_sheets, dev_blocktypes)
-
             model_path = os.path.join(result_path,
-                            config["crf"]["block_extractor_model_file"]+ str(i) + ".model")
-            be_trainer = ChainCRFTrainer(model_path)
+                            config["c2v"]["block_extractor_model_file"]+ str(i) + ".model")
+            be_trainer = C2VExtractorTrainer(model_path)
             be_trainer.fit(train_sheets, train_blocktypes, dev_sheets, dev_blocktypes)
+
+            #model_path = os.path.join(result_path,
+            #                config["crf"]["block_extractor_model_file"]+ str(i) + ".model")
+            #be_trainer = ChainCRFTrainer(model_path)
+            #be_trainer.fit(train_sheets, train_blocktypes, dev_sheets, dev_blocktypes)
 
         if train_lp:
             model_path = os.path.join(result_path,
