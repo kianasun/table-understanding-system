@@ -20,6 +20,7 @@ import time
 
 def validate_psl(cc_model_file, be_model_file, config, eval_sheets, eval_blocks):
 
+    # Select the best parameter values
     cc_classifier = PSLCellClassifier(cc_model_file, config)
     cc_tags = cc_classifier.classify_cells_all_tables(eval_sheets)
 
@@ -132,11 +133,9 @@ def main(config, method):
 
         pred = predict_one_fold(cc_model_path, be_model_path, config, method,
                                (test_sheets, cc_pred, test_blocktypes), # use self-predicted cc
-                               #(test_sheets, test_cctypes, test_blocktypes),
                                (dev_sheets, dev_blocktypes))
 
         pred_list.append(pred)
-        #break
 
     with open(os.path.join(result_path, config[method]["be_output"]), 'w+') as outfile:
         json.dump(pred_list, outfile)

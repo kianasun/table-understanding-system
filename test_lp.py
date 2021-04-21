@@ -69,7 +69,6 @@ def main(config, method):
         if method == "crf" or method == "rf":
             lp_model_path = os.path.join(result_path,
                                 config[method]["layout_predictor_model_file"]+ str(i) +".model")
-            #lp_model_path = config[method]["layout_prediction_model_file"]+ str(i) +".pkl"
         else:
             lp_model_path = None
 

@@ -17,6 +17,7 @@ def main(config):
 
     all_indices = [item for lst in indices for item in lst]
 
+    # We remove the first 10 tables which were used for rule development
     all_indices = all_indices[10:]
 
     indices = data_loader.split_indices(all_indices, k=config['num_of_folds'])
@@ -32,6 +33,7 @@ def main(config):
 
         random.shuffle(other_indices)
 
+        # 9:1 for splitting train/dev
         split_point = int(len(other_indices)*0.9)
 
         folds_list.append({"train": other_indices[:split_point],

@@ -2,19 +2,14 @@ import os
 import random
 import numpy as np
 import json
-from reader.file_reader import get_file_reader
 from reader.sheet import Sheet
-from type.cell.function_cell_type import FunctionCellType
 from type.cell.semantic_cell_type import SemanticCellType
 from type.block.function_block_type import FunctionBlockType
-from type.block.function_block_type_v2 import FunctionBlockTypeV2
 from type.layout.layout_graph import LayoutGraph
 from type.layout.basic_edge_type import BasicEdgeType
 from type.cell.cell_type_pmf import CellTypePMF
 from type.block.block_type_pmf import BlockTypePMF
 from type.block.simple_block import SimpleBlock
-from type.layout.basic_edge_type import BasicEdgeType
-from type.layout.layout_graph import LayoutGraph
 from typing import List
 import itertools
 
@@ -80,8 +75,6 @@ class LoadCell2VecData:
 
                 feat_array = dic["feature_array"]
 
-                #annotations = dic["annotations"]
-
                 block_types = dic["blocks"]
 
                 if "embeddings" not in dic:
@@ -97,17 +90,12 @@ class LoadCell2VecData:
 
                 if "data_types" in dic:
                     data_types = dic["data_types"]
-                    #for i, row in enumerate(annotations):
                     for i, row in enumerate(data_types):
                         for j, cell in enumerate(row):
                             if cell is None:
                                 typ = "empty"
                             else:
                                 typ = cell
-                            #elif cell == "derived":
-                            #    typ = "data"
-                            #elif cell == "notes":
-                            #    typ = "metadata"
 
                             datatype_tags[i][j] = CellTypePMF({SemanticCellType.inverse_dict[typ]: 1})
                 blks = []
@@ -116,6 +104,7 @@ class LoadCell2VecData:
                     new_blk = SimpleBlock(BlockTypePMF({FunctionBlockType.inverse_dict[typ]: 1.0}), ly, ry, lx, rx)
                     blks.append(new_blk)
 
+                # Tables without functional role annotations are ignored
                 if len(blks) == 0:
                     continue
 

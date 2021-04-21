@@ -63,7 +63,7 @@ class Block2FeatV2:
                 t_blocks = None if blocks is None else blocks[i]
 
                 temp_target, temp_truth = self.serialize_blocks_truth_targets(sheet, t_blocks, tags[i], celltypes[i], i)
-                print("generated {} table {}".format(i, sheet.values.shape))
+                #print("generated {} table {}".format(i, sheet.values.shape))
 
                 if len(target_strs) == 0:
                     target_strs = temp_target
@@ -98,7 +98,6 @@ class Block2FeatV2:
 
             for li in range(lx, rx + 1):
                 for ri in range(ly, ry + 1):
-                    #temp_lab = self.cell2vec[(tid, li, ri)]
                     temp_dt = celltypes[li][ri].get_best_type().str()
                     if temp_dt not in datatype_cnt:
                         datatype_cnt[temp_dt] = 0

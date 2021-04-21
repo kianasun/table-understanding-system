@@ -5,304 +5,251 @@ from type.block.simple_block import SimpleBlock
 from typing import List
 from queue import Queue
 from reader.sheet import Sheet
-from type.cell.cell_type_pmf import CellTypePMF
-from type.cell.cell_type import CellType
-from typing import Tuple
 import random
-from sklearn.preprocessing import normalize
 from type.cell.semantic_cell_type import SemanticCellType
-import multiprocessing as mp
-from block_extractor.block_extractor_c2v import BlockExtractorC2V
-from type.cell.function_cell_type import FunctionCellType
-from type.cell.cell_type_pmf import CellTypePMF
-from type.block.function_block_type import FunctionBlockType
-import time
-#Process, Queue, current_process, freeze_support
-
-def worker(func, input, output):
-
-	for args in iter(input.get, 'STOP'):
-		result = func(*args)
-		#print(len(result[0]), result[1])
-		output.put(result)
-
 
 class BlockExtractorMCMC(BlockExtractor):
 
-	def __init__(self, alpha=1.0, beta=0.1, lmd=10, num_process=50, N=50, maxdepth=None):
-		# cius 0.03
-		self.alpha = 1.0
-		self.beta = beta
-		self.lmd = lmd
-		self.N = N
-		self.num_process = num_process
-
-	def is_split(self, d):
-
-		p = self.alpha / ((1 + d) ** self.beta)
-
-		rv = random.random()
-		if rv <= p:
-			return True
-		else:
-			return False
-
-	def get_best_split_col(self, block, typ_array):
-		best_split = None, None
-		best_dist = 0
-		dist_list = []
-		entropy_list = []
-
-		block_list = []
-		lx, rx = block.get_top_row(), block.get_bottom_row()
-		#print("current block! col split!", str(block))
-
-		for b1, b2 in self.get_splits_cols(block):
-			b1_ly, b1_ry = b1
-			b2_ly, b2_ry = b2
-
-			b1_np = self.get_mean_dist(typ_array[lx:rx+1, b1_ly:b1_ry + 1])
-			b2_np = self.get_mean_dist(typ_array[lx:rx+1, b2_ly:b2_ry + 1])
-
-			dist = np.linalg.norm(b1_np - b2_np)**2
-			dist = 0 if dist == 0 else self.lmd * np.exp(-self.lmd / dist)
-			dist_list.append(dist)
-			block_list.append((b1, b2))
-			#print("b1", b1_ly, b1_ry, "b2", b2_ly, b2_ry)
-			#print("b1_np", b1_np, "b2_np", b2_np)
-			#print("dist", np.linalg.norm(b1_np - b2_np)**2, "final", dist)
-
-		sum_dist = sum(dist_list)
-
-		if len(block_list) == 0 or sum_dist == 0:
-			return (None, None)
-
-		temp_list = [_ for _ in range(len(block_list))]
-
-		rc = random.choices(population=temp_list,
-							weights=dist_list)[0]
-		b1 = SimpleBlock(None, block_list[rc][0][0], block_list[rc][0][1], lx, rx)
-		b2 = SimpleBlock(None, block_list[rc][1][0], block_list[rc][1][1], lx, rx)
-		#print("chosen", str(b1), str(b2))
-		return (b1, b2)
-
-	def get_entropy(self, ratios):
-		ret = 0
-		for r in ratios:
-			if r == 0:
-				continue
-			ret -= r * np.log(r)
-		return ret
-
-	def get_mean_dist(self, vec):
-		temp = vec.reshape(-1, vec.shape[-1])
-		temp_sum = temp.sum(axis=0)
-		if temp_sum.sum() == 0:
-			return temp_sum
-		else:
-			return temp_sum / temp_sum.sum()
-
-	def get_best_split(self, block, typ_array):
-
-		best_split = None, None
-		best_dist = 0
-		dist_list = []
-		entropy_list = []
-		dist_c2v_list = []
-
-		block_list = []
-		#print("current block! row split!", str(block))
-
-		for b1, b2 in self.get_splits_rows(block):
-
-			(b1_lx, b1_rx) = b1
-			(b2_lx, b2_rx) = b2
-
-			b1_np = self.get_mean_dist(typ_array[b1_lx:b1_rx+1, :])
-			b2_np = self.get_mean_dist(typ_array[b2_lx:b2_rx+1, :])
-
-			dist = np.linalg.norm(b1_np - b2_np)**2
-			dist = 0 if dist == 0 else self.lmd * np.exp(-self.lmd / dist)
-			dist_list.append(dist)
-			block_list.append((b1, b2))
-			#print("b1", b1_lx, b1_rx, "b2", b2_lx, b2_rx)
-			#print("b1_np", b1_np, "b2_np", b2_np)
-			#print("dist", np.linalg.norm(b1_np - b2_np)**2, "final", dist)
-
-		sum_dist = sum(dist_list)
+    def __init__(self, alpha=1.0, beta=0.1, lmd=10, num_process=50, N=50, maxdepth=None):
+        # alpha is fixed
+        self.alpha = 1.0
+        self.beta = beta
+        self.lmd = lmd
+        self.N = N
+        self.num_process = num_process
 
-		if len(block_list) == 0 or sum_dist == 0:
-			return (None, None)
+    def is_split(self, d):
+
+        p = self.alpha / ((1 + d) ** self.beta)
+
+        rv = random.random()
+        if rv <= p:
+            return True
+        else:
+            return False
 
-		temp_list = [_ for _ in range(len(block_list))]
+    def get_best_split_col(self, block, typ_array):
+        best_split = None, None
+        best_dist = 0
+        dist_list = []
+        entropy_list = []
 
-		rc = random.choices(population=temp_list,
-							weights=dist_list)[0]
+        block_list = []
+        lx, rx = block.get_top_row(), block.get_bottom_row()
 
-		b1 = SimpleBlock(None, block.get_left_col(), block.get_right_col(), block_list[rc][0][0], block_list[rc][0][1])
-		b2 = SimpleBlock(None, block.get_left_col(), block.get_right_col(), block_list[rc][1][0], block_list[rc][1][1])
-		#print("chosen", str(b1), str(b2))
-		return (b1, b2)
+        for b1, b2 in self.get_splits_cols(block):
+            b1_ly, b1_ry = b1
+            b2_ly, b2_ry = b2
 
-	def get_splits_cols(self, block):
-		for col in range(block.get_left_col(), block.get_right_col()):
-			b1 = (block.get_left_col(), col)
-			b2 = (col + 1, block.get_right_col())
+            b1_np = self.get_mean_dist(typ_array[lx:rx+1, b1_ly:b1_ry + 1])
+            b2_np = self.get_mean_dist(typ_array[lx:rx+1, b2_ly:b2_ry + 1])
+
+            dist = np.linalg.norm(b1_np - b2_np)**2
+            dist = 0 if dist == 0 else self.lmd * np.exp(-self.lmd / dist)
+            dist_list.append(dist)
+            block_list.append((b1, b2))
 
-			yield b1, b2
+        sum_dist = sum(dist_list)
 
-	def get_splits_rows(self, block: SimpleBlock):
+        if len(block_list) == 0 or sum_dist == 0:
+            return (None, None)
 
-		for row in range(block.get_top_row(), block.get_bottom_row()):
-			b1 = (block.get_top_row(), row)
-			b2 = (row + 1, block.get_bottom_row())
+        temp_list = [_ for _ in range(len(block_list))]
 
-			yield b1, b2
+        # random select a split from all possible column splits
+        rc = random.choices(population=temp_list,
+                            weights=dist_list)[0]
+        b1 = SimpleBlock(None, block_list[rc][0][0], block_list[rc][0][1], lx, rx)
+        b2 = SimpleBlock(None, block_list[rc][1][0], block_list[rc][1][1], lx, rx)
+        return (b1, b2)
 
-	def get_vec_each_cell(self, typ, dic):
-		typ_obj = typ.get_best_type().str()
+    def get_entropy(self, ratios):
+        ret = 0
+        for r in ratios:
+            if r == 0:
+                continue
+            ret -= r * np.log(r)
+        return ret
 
-		#if typ_obj == "cardinal":
-		#	temp_typ = "cardinal"
-		if typ_obj in set(["ordinal", "cardinal"]):
-			temp_typ = "cardinal"
-		elif typ_obj == "nominal":
-			temp_typ = "nominal"
-		elif typ_obj == "datetime":
-			temp_typ = "datetime"
-		elif typ_obj == "empty":
-			temp_typ = "empty"
-		else:
-			temp_typ = "string"
+    def get_mean_dist(self, vec):
+        temp = vec.reshape(-1, vec.shape[-1])
+        temp_sum = temp.sum(axis=0)
+        if temp_sum.sum() == 0:
+            return temp_sum
+        else:
+            return temp_sum / temp_sum.sum()
 
-		vec = [0 for _ in range(len(dic))]
+    def get_best_split(self, block, typ_array):
 
-		vec[dic[temp_typ]] = 1
+        best_split = None, None
+        best_dist = 0
+        dist_list = []
+        entropy_list = []
+        dist_c2v_list = []
 
-		return vec
+        block_list = []
 
-	def convert_vec_for_all_cells(self, block, celltypes):
-		lx, rx, ly, ry = block.get_top_row(), block.get_bottom_row(), block.get_left_col(), block.get_right_col()
+        for b1, b2 in self.get_splits_rows(block):
 
-		typ_dic = {}
+            (b1_lx, b1_rx) = b1
+            (b2_lx, b2_rx) = b2
 
-		for (k, v) in SemanticCellType.inverse_dict.items():
-			if k in set(["string", "cardinal", "datetime", "empty", "nominal"]):
-				typ_dic[k] = len(typ_dic)
-		#print("typ_dic", typ_dic)
-		ret = []
+            b1_np = self.get_mean_dist(typ_array[b1_lx:b1_rx+1, :])
+            b2_np = self.get_mean_dist(typ_array[b2_lx:b2_rx+1, :])
 
-		for i in range(lx, rx + 1):
-			temp = []
-			for j in range(ly, ry + 1):
-				vec = self.get_vec_each_cell(celltypes[i][j], typ_dic)
-				temp.append(vec)
-			ret.append(temp)
+            dist = np.linalg.norm(b1_np - b2_np)**2
+            dist = 0 if dist == 0 else self.lmd * np.exp(-self.lmd / dist)
+            dist_list.append(dist)
+            block_list.append((b1, b2))
 
-		return np.array(ret)
+        sum_dist = sum(dist_list)
 
-	def convert_vec_for_nonemp_cells(self, block, celltypes):
-		lx, rx, ly, ry = block.get_top_row(), block.get_bottom_row(), block.get_left_col(), block.get_right_col()
+        if len(block_list) == 0 or sum_dist == 0:
+            return (None, None)
 
-		typ_dic = {}
+        temp_list = [_ for _ in range(len(block_list))]
 
-		for (k, v) in SemanticCellType.inverse_dict.items():
-			if k in set(["string", "cardinal", "datetime", "empty", "nominal"]):
-				typ_dic[k] = len(typ_dic)
-		ret = []
+        # random select a split from all possible row splits
+        rc = random.choices(population=temp_list,
+                            weights=dist_list)[0]
 
-		for i in range(lx, rx + 1):
-			temp = []
-			for j in range(ly, ry + 1):
-				if celltypes[i][j].get_best_type().str() == "empty":
-					vec = [0 for _ in range(len(typ_dic))]
-				else:
-					vec = self.get_vec_each_cell(celltypes[i][j], typ_dic)
-				temp.append(vec)
-			ret.append(temp)
+        b1 = SimpleBlock(None, block.get_left_col(), block.get_right_col(), block_list[rc][0][0], block_list[rc][0][1])
+        b2 = SimpleBlock(None, block.get_left_col(), block.get_right_col(), block_list[rc][1][0], block_list[rc][1][1])
+        return (b1, b2)
 
-		return np.array(ret)
+    def get_splits_cols(self, block):
+        for col in range(block.get_left_col(), block.get_right_col()):
+            b1 = (block.get_left_col(), col)
+            b2 = (col + 1, block.get_right_col())
 
-	def generate_a_tree(self, sheet, start_block, typ_array, nonemp_array):
-		row_blocks = []
+            yield b1, b2
 
-		max_row, max_col = sheet.values.shape
+    def get_splits_rows(self, block: SimpleBlock):
 
-		q = Queue()
-		q.put((start_block, 0))
+        for row in range(block.get_top_row(), block.get_bottom_row()):
+            b1 = (block.get_top_row(), row)
+            b2 = (row + 1, block.get_bottom_row())
 
-		weights = []
+            yield b1, b2
 
-		pre_com = dict()
+    def get_vec_each_cell(self, typ, dic):
+        typ_obj = typ.get_best_type().str()
 
-		while not q.empty():
-			(next_block, d) = q.get()
+        if typ_obj in set(["ordinal", "cardinal", "nominal"]):
+            temp_typ = typ_obj
+        elif typ_obj == "datetime":
+            temp_typ = "datetime"
+        elif typ_obj == "empty":
+            temp_typ = "empty"
+        else:
+            temp_typ = "string"
+        # we don't use fine-grained string types because
+        # the performance of the cell classification is not good enough
 
-			if self.is_split(d):
-				(b1, b2) = self.get_best_split(next_block, typ_array)
-				if (b1 and b2):
-					q.put((b1, d+1))
-					q.put((b2, d+1))
-				else:
-					row_blocks.append((next_block, d))
-			else:
+        vec = [0 for _ in range(len(dic))]
 
-				row_blocks.append((next_block, d))
+        vec[dic[temp_typ]] = 1
 
-		blocks = set()
+        return vec
 
-		q = Queue()
-		for blk in row_blocks:
-			q.put((blk[0], 0))
+    def convert_vec_for_all_cells(self, block, celltypes):
+        lx, rx, ly, ry = block.get_top_row(), block.get_bottom_row(), block.get_left_col(), block.get_right_col()
 
-		while not q.empty():
-			(next_block, d) = q.get()
+        typ_dic = {}
 
-			(b1, b2) = self.get_best_split_col(next_block, typ_array)
+        for (k, v) in SemanticCellType.inverse_dict.items():
+            if k in set(["string", "cardinal", "datetime", "empty", "nominal", "ordinal"]):
+                typ_dic[k] = len(typ_dic)
+        ret = []
 
-			if self.is_split(d):
-				if (b1 and b2):
-					q.put((b1, d+1))
-					q.put((b2, d+1))
-				else:
-					blocks.add(next_block)
-			else:
-				blocks.add(next_block)
+        for i in range(lx, rx + 1):
+            temp = []
+            for j in range(ly, ry + 1):
+                vec = self.get_vec_each_cell(celltypes[i][j], typ_dic)
+                temp.append(vec)
+            ret.append(temp)
 
-		weight = 0
-		all_areas = sum([blk.get_area() for (blk, _) in row_blocks])
-		for (blk, _) in row_blocks:
-			arr = self.get_mean_dist(nonemp_array[blk.get_top_row():blk.get_bottom_row() + 1, blk.get_left_col():blk.get_right_col() + 1])
-			#arr = self.get_cell_distribution_of_split(blk, tags, True)
-			if arr is None:
-				continue
-			entropy = self.get_entropy(np.array(arr))
-			weight += (blk.get_area() / all_areas) * entropy
+        return np.array(ret)
 
-		weight =  self.lmd * np.exp(-self.lmd * weight)
-		return list(blocks), weight
+    def generate_a_tree(self, sheet, start_block, typ_array):
+        row_blocks = []
 
-	def extract_blocks(self, sheet: Sheet, tags, c2v_types) -> List[SimpleBlock]:
-		#print(sheet.values[:, 0])
+        max_row, max_col = sheet.values.shape
 
-		random.seed(0)
-		start = time.time()
+        q = Queue()
+        q.put((start_block, 0))
 
-		max_row, max_col = sheet.values.shape
+        weights = []
 
-		start_block = SimpleBlock(None, 0, max_col - 1, 0, max_row - 1)  # TODO: Check if -1 is correct
+        pre_com = dict()
 
-		typ_array = self.convert_vec_for_all_cells(start_block, tags)
-		nonemp_array = self.convert_vec_for_nonemp_cells(start_block, tags)
+        # Firstly row splits
+        while not q.empty():
+            (next_block, d) = q.get()
 
-		blocks_list, weight_list = [], []
-		for i in range(self.N):
-			(b, w) = self.generate_a_tree(sheet, start_block, typ_array, nonemp_array)
-			blocks_list.append(b)
-			weight_list.append(w)
-		blocks = random.choices(population=blocks_list,
-								weights=weight_list)[0]
-		end = time.time()
-		#print("choice running time", end - get_end)
-		#print("main running time", end - start)
-		return blocks
+            if self.is_split(d):
+                (b1, b2) = self.get_best_split(next_block, typ_array)
+                if (b1 and b2):
+                    q.put((b1, d+1))
+                    q.put((b2, d+1))
+                else:
+                    row_blocks.append((next_block, d))
+            else:
+
+                row_blocks.append((next_block, d))
+
+        blocks = set()
+
+        q = Queue()
+        for blk in row_blocks:
+            q.put((blk[0], 0))
+
+        # Secondly column splits
+        while not q.empty():
+            (next_block, d) = q.get()
+
+            (b1, b2) = self.get_best_split_col(next_block, typ_array)
+
+            if self.is_split(d):
+                if (b1 and b2):
+                    q.put((b1, d+1))
+                    q.put((b2, d+1))
+                else:
+                    blocks.add(next_block)
+            else:
+                blocks.add(next_block)
+
+        weight = 0
+        all_areas = sum([blk.get_area() for blk in blocks])
+
+        for blk in blocks:
+            arr = self.get_mean_dist(typ_array[blk.get_top_row():blk.get_bottom_row() + 1, blk.get_left_col():blk.get_right_col() + 1])
+            if arr is None:
+                continue
+            entropy = self.get_entropy(np.array(arr))
+            weight += (blk.get_area() / all_areas) * entropy
+
+        weight =  self.lmd * np.exp(-self.lmd * weight)
+        return list(blocks), weight
+
+    def extract_blocks(self, sheet: Sheet, tags, c2v_types) -> List[SimpleBlock]:
+        #print(sheet.values[:, 0])
+
+        random.seed(0)
+
+        max_row, max_col = sheet.values.shape
+
+        start_block = SimpleBlock(None, 0, max_col - 1, 0, max_row - 1)
+
+        typ_array = self.convert_vec_for_all_cells(start_block, tags)
+
+        blocks_list, weight_list = [], []
+        for i in range(self.N):
+            (b, w) = self.generate_a_tree(sheet, start_block, typ_array)
+            blocks_list.append(b)
+            weight_list.append(w)
+
+        # randomly select a tree
+        blocks = random.choices(population=blocks_list,
+                                weights=weight_list)[0]
+        return blocks

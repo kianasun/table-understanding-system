@@ -18,24 +18,26 @@ import os
 
 def main(config, train_cc, train_be, train_lp):
 
+    # Load data
     data_loader = LoadCell2VecData(config['jl_path'])
 
+    # Set the output directory
     output_dir = os.path.join(config["data_path"], config["dataset"])
 
+    # Load fold information (folds are already generated)
     with open(os.path.join(output_dir, config["fold_file"]), 'r') as outfile:
         folds = json.load(outfile)
 
     folds_list = []
 
     for i, fold in enumerate(folds):
-        #if i != 0:
-        #    continue
         train_indices = fold["train"]
         dev_indices = fold["dev"]
 
         train_sheets, train_celltypes, train_blocktypes, train_layouttypes = data_loader.get_tables_from_indices(train_indices)
         dev_sheets, dev_celltypes, dev_blocktypes, dev_layouttypes = data_loader.get_tables_from_indices(dev_indices)
 
+        # Set the directory to save models
         result_path = os.path.join(config["model_path"], config["dataset"])
         os.makedirs(result_path, exist_ok=True)
 
@@ -45,11 +47,13 @@ def main(config, train_cc, train_be, train_lp):
             cc_trainer = C2VClassifierTrainer(model_path)
             cc_trainer.fit(train_sheets, train_celltypes, dev_sheets, dev_celltypes)
 
+            # Train CRF model
             #model_path = os.path.join(result_path,
             #                config["crf"]["cell_classifier_model_file"]+ str(i) +".model")
             #cc_trainer = GridCRFTrainer(model_path)
             #cc_trainer.fit(train_sheets, train_celltypes, dev_sheets, dev_celltypes)
 
+            # Train MLP model
             #model_path = os.path.join(result_path,
             #                config["mlp"]["cell_classifier_model_file"]+ str(i) +".model")
             #cc_trainer = MLPClassifierTrainer(model_path)
@@ -61,6 +65,7 @@ def main(config, train_cc, train_be, train_lp):
             be_trainer = C2VExtractorTrainer(model_path)
             be_trainer.fit(train_sheets, train_blocktypes, dev_sheets, dev_blocktypes)
 
+            # Train CRF model
             #model_path = os.path.join(result_path,
             #                config["crf"]["block_extractor_model_file"]+ str(i) + ".model")
             #be_trainer = ChainCRFTrainer(model_path)
@@ -80,8 +85,11 @@ def main(config, train_cc, train_be, train_lp):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str)
+    # train cell classification models
     parser.add_argument('--cell', dest='cell', action='store_true')
+    # train block detection models
     parser.add_argument('--block', dest='block', action='store_true')
+    # train layout detection models
     parser.add_argument('--layout', dest='layout', action='store_true')
 
     FLAGS, unparsed = parser.parse_known_args()
